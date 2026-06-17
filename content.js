@@ -33,18 +33,20 @@ window.addEventListener("gamepadconnected", function(e) {
 function selectThumbnail(index) {
   if (thumbnails[selectedIndex]) {
     thumbnails[selectedIndex].style.outline = "";
+    thumbnails[selectedIndex].style.transform = "";
+    thumbnails[selectedIndex].style.zIndex = "";
   }
   selectedIndex = index;
-  thumbnails[selectedIndex].style.outline = "3px solid red";
+  thumbnails[selectedIndex].style.transform = "scale(1.3)";
+  thumbnails[selectedIndex].style.zIndex = "999"; // passe par-dessus les voisins
+  thumbnails[selectedIndex].style.transition = "transform 0.15s ease";
   thumbnails[selectedIndex].scrollIntoView({ behavior: "smooth", block: "center" });
 
-  // rescanner quand on approche de la fin
   if (selectedIndex >= thumbnails.length - 4) {
     scanThumbnails();
     console.log("rescan : " + thumbnails.length);
   }
 }
-
 function gameLoop() {
   const gp = navigator.getGamepads()[0];
   if (gp && thumbnails.length > 0) {
