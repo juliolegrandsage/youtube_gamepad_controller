@@ -36,13 +36,7 @@ Une extension Chrome qui permet de naviguer sur YouTube avec une manette de jeu.
 
 ## Contrôles
 
-| Bouton | Action |
-|---|---|
-| Joystick gauche ← → | Naviguer entre les vidéos |
-| A | Lancer la vidéo sélectionnée |
-| A (pendant lecture) | Pause / Lecture |
-| B (pendant lecture) | Retour à l'accueil |
-| X (pendant lecture) | Plein écran |
+### Tu peux toi-même binder tes propres touches sur la popup de l'extension.
 
 ---
 
