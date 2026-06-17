@@ -6,6 +6,8 @@ let lastButton0 = false;
 let lastButton1 = false;
 let lastButton2 = false;
 let isFullScreen = false;
+let gamepad_name = ""
+
 
 function scanThumbnails() {
   thumbnails = Array.from(document.querySelectorAll("ytd-rich-item-renderer"));
@@ -23,12 +25,21 @@ const observer = new MutationObserver(() => {
 
 observer.observe(document.documentElement, { childList: true, subtree: true });
 
-window.addEventListener("gamepadconnected", function(e) {
-  console.log("manette co");
+window.addEventListener("gamepadconnected", (e) => {
+  const gp = navigator.getGamepads()[e.gamepad.index];
   document.body.style.zoom = "80%";
-  let gp = navigator.getGamepads()[e.gamepad.index];
-  console.log(gp.id);
+  console.log("manette co:", gp.id);
+
+  chrome.storage.local.set({
+    gamepad: {
+      name: gp.id,
+      index: e.gamepad.index
+    }
+  });
 });
+
+
+  document.body.style.zoom = "80%";
 
 function selectThumbnail(index) {
   if (thumbnails[selectedIndex]) {
@@ -133,3 +144,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 requestAnimationFrame(gameLoop);
+
+
+
+

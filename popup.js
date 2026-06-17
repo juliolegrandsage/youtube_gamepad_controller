@@ -61,3 +61,10 @@ buttons.BACK.addEventListener("click", () => {
 
 
 console.log("POPUP LOAD", bindings);
+
+let gamepad_p = document.getElementById("connected_gamepad")
+
+chrome.storage.local.get("gamepad", (data) => {
+  document.getElementById("connected_gamepad").textContent = "Connected gamepad : " +
+    data.gamepad?.name || "No gamepad";
+});

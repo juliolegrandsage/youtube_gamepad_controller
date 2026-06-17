@@ -1,5 +1,92 @@
-body{
-    width: 150px;
-    color: white;
-    background-color: black;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+body {
+  width: 320px;
+  padding: 14px;
+  background: #0f0f0f;
+  color: #ffffff;
+}
+
+/* Titre éventuel */
+h1, h2 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  text-align: center;
+}
+
+/* Container des bindings */
+.binding {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.binding:hover {
+  transform: translateY(-1px);
+  border-color: #ff0000;
+}
+
+/* Texte action */
+.binding p {
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: #cfcfcf;
+}
+
+/* Boutons */
+button {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+
+  background: #272727;
+  color: white;
+  font-size: 13px;
+
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+button:hover {
+  background: #3a3a3a;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+/* Mode "press a button..." */
+button.binding-active {
+  background: #ff0000;
+  color: white;
+  animation: pulse 1s infinite;
+}
+
+/* petit effet pulse */
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.5); }
+  70% { box-shadow: 0 0 0 6px rgba(255, 0, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+}
+
+/* séparateur optionnel */
+.separator {
+  height: 1px;
+  background: #2a2a2a;
+  margin: 12px 0;
+}
+
+.connected_gamepad{
+    font-size: 50px;
 }
