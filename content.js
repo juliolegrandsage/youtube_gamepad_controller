@@ -88,10 +88,23 @@ function isPressed(gp, index) {
   return current && !previous;
 }
 console.log("CONTENT SCRIPT LOAD", bindings);
+
+let enabled = true;
+
+chrome.storage.sync.get("enabled", (data) => {
+  enabled = data.enabled ?? true;
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync" && changes.enabled) {
+    enabled = changes.enabled.newValue;
+  }
+});
+
 function gameLoop() {
   const gp = navigator.getGamepads()[0];
 
-  if (gp && thumbnails.length > 0) {
+  if (gp && thumbnails.length > 0 && enabled) {
 
     const onHome = location.pathname !== "/watch";
 
@@ -138,6 +151,9 @@ function gameLoop() {
           document.exitFullscreen();
         }
       }
+    }
+    if(!enabled){
+      return
     }
   }
 

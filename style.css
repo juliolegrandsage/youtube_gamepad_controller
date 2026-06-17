@@ -100,6 +100,6 @@ button.binding-active {
 .connected_gamepad {
     font-size: 34px;
     margin-top: 10px;
-    color: #aaa;
+    color: #ff0000;
     text-align: center;
 }
