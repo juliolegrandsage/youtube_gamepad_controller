@@ -19,7 +19,7 @@ Une extension Chrome qui permet de naviguer sur YouTube avec une manette de jeu.
 
 1. Clone le repo :
    ```bash
-   git clone https://github.com/ton-username/youtube-gamepad.git
+   https://github.com/juliolegrandsage/yotube_gamepad_controller.git
    ```
 
 2. Ouvre Chrome et va sur `chrome://extensions`
