@@ -47,50 +47,89 @@ function selectThumbnail(index) {
     console.log("rescan : " + thumbnails.length);
   }
 }
+
+let bindings = {
+  PLAY_PAUSE: 0,
+  BACK: 1,
+  FULLSCREEN: 2
+};
+
+chrome.storage.sync.get("bindings", (data) => {
+  if (data.bindings) {
+    bindings = data.bindings;
+  }
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync" && changes.bindings) {
+    bindings = changes.bindings.newValue;
+    console.log("Bindings updated:", bindings);
+  }
+});
+function isPressed(gp, index) {
+  if (!gp.buttons[index]) return false;
+
+  const current = gp.buttons[index].pressed;
+  const previous = gp.buttons[index]._prev || false;
+
+  gp.buttons[index]._prev = current;
+
+  return current && !previous;
+}
+console.log("CONTENT SCRIPT LOAD", bindings);
 function gameLoop() {
   const gp = navigator.getGamepads()[0];
-  if (gp && thumbnails.length > 0) {
-    const button0 = gp.buttons[0]?.pressed;
-    const button1 = gp.buttons[1]?.pressed;
-    const button2 = gp.buttons[2]?.pressed;
 
-    if (!isPlayingAVideo && location.href == "https://www.youtube.com/") {
+  if (gp && thumbnails.length > 0) {
+
+    const onHome = location.pathname !== "/watch";
+
+    if (onHome) {
+
       const axisX = gp.axes[0];
+
       if (axisX > 0.5 && lastAxis <= 0.5) {
         selectThumbnail(Math.min(selectedIndex + 1, thumbnails.length - 1));
-      } else if (axisX < -0.5 && lastAxis >= -0.5) {
+      } 
+      else if (axisX < -0.5 && lastAxis >= -0.5) {
         selectThumbnail(Math.max(selectedIndex - 1, 0));
       }
+
       lastAxis = axisX;
-      if (button0 && !lastButton0) {
-        thumbnails[selectedIndex].querySelector("a").click();
+
+      if (isPressed(gp, bindings.PLAY_PAUSE)) {
+        thumbnails[selectedIndex]?.querySelector("a")?.click();
         isPlayingAVideo = true;
       }
-    } else {
+    } 
+    else {
+
       const video = document.querySelector("video");
-      if (video && button0 && !lastButton0) {
+
+      if (!video) {
+        requestAnimationFrame(gameLoop);
+        return;
+      }
+
+      if (isPressed(gp, bindings.PLAY_PAUSE)) {
         video.paused ? video.play() : video.pause();
       }
-      if (isPlayingAVideo && button1 && !lastButton1) {
+
+      if (isPressed(gp, bindings.BACK)) {
+        history.back();
         isPlayingAVideo = false;
-        history.go(-1);
       }
-      if (isPlayingAVideo && button2 && !lastButton2) {
-        if (!isFullScreen) {
+
+      if (isPressed(gp, bindings.FULLSCREEN)) {
+        if (!document.fullscreenElement) {
           video.requestFullscreen();
-          isFullScreen = true;
         } else {
           document.exitFullscreen();
-          isFullScreen = false;
         }
       }
     }
-
-    lastButton0 = button0;
-    lastButton1 = button1;
-    lastButton2 = button2;
   }
+
   requestAnimationFrame(gameLoop);
 }
-
 requestAnimationFrame(gameLoop);
