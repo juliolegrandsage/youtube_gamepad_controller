@@ -1,13 +1,15 @@
 const buttons = {
     PLAY_PAUSE: document.getElementById("select_btn"),
     FULLSCREEN: document.getElementById("fullscreen_btn"),
-    BACK: document.getElementById("homepage_btn")
+    BACK: document.getElementById("homepage_btn"),
+    SEARCH: document.getElementById("search_btn")
 };
 
 let bindings = {
     PLAY_PAUSE: 0,
     BACK: 1,
-    FULLSCREEN: 2
+    FULLSCREEN: 2,
+    SEARCH: 3
 };
 
 chrome.storage.sync.get("bindings", (data) => {
@@ -21,6 +23,7 @@ function refreshUI() {
     buttons.PLAY_PAUSE.textContent = `Button ${bindings.PLAY_PAUSE}`;
     buttons.FULLSCREEN.textContent = `Button ${bindings.FULLSCREEN}`;
     buttons.BACK.textContent = `Button ${bindings.BACK}`;
+    buttons.SEARCH.textContent = `Button ${bindings.SEARCH}`;
 }
 
 function waitForButton(action) {
@@ -58,7 +61,9 @@ buttons.BACK.addEventListener("click", () => {
     waitForButton("BACK");
 });
 
-
+buttons.SEARCH.addEventListener("click", () => {
+    waitForButton("SEARCH")
+})
 
 console.log("POPUP LOAD", bindings);
 

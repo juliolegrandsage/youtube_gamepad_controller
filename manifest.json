@@ -12,12 +12,19 @@
   "content_scripts": [
     {
       "matches": ["https://*.youtube.com/*"],
-      "js": ["content.js"]
+      "js": ["keyboard.js", "content.js"],
+      "css": ["keyboard.css"]
     }
   ],
   "icons": {
   "16": "logo16.png",
   "48": "logo48.png",
   "128": "logo128.png"
-}
+},
+"web_accessible_resources": [
+  {
+    "resources": ["keyboard.html"],
+    "matches": ["https://*.youtube.com/*"]
+  }
+]
 }

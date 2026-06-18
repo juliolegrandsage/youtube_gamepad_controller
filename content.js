@@ -1,26 +1,43 @@
 let thumbnails = [];
+let search_bar;
 let selectedIndex = 0;
 let lastAxis = 0;
 let isPlayingAVideo = false;
-let lastButton0 = false;
-let lastButton1 = false;
-let lastButton2 = false;
 let isFullScreen = false;
-let gamepad_name = ""
-
+let gamepad_name = "";
+let lastCount = 0;
 
 function scanThumbnails() {
-  thumbnails = Array.from(document.querySelectorAll("ytd-rich-item-renderer"));
-}
+  if (isSearchPage()) {
+    thumbnails = Array.from(document.querySelectorAll("ytd-thumbnail"));
+  } else {
+    thumbnails = Array.from(document.querySelectorAll("ytd-rich-item-renderer"));
+  }
+  search_bar = document.querySelector(
+    "input#search, input[name='search_query'], .ytSearchboxComponentInput"
+  );
 
+  search_btn = document.querySelector(".ytSearchboxComponentSearchButton");
+}
 const observer = new MutationObserver(() => {
-  const items = document.querySelectorAll("ytd-rich-item-renderer");
+  let items;
+
+  if (isSearchPage()) {
+    items = document.querySelectorAll("ytd-video-renderer");
+    console.log("is search page")
+  } else {
+    items = document.querySelectorAll("ytd-rich-item-renderer");
+  }
+
   if (items.length > 0) {
     thumbnails = Array.from(items);
-    console.log("vidéos : " + thumbnails.length);
+    console.log("items :", thumbnails.length);
     observer.disconnect();
     selectThumbnail(0);
   }
+  if (items.length === lastCount) return;
+
+  lastCount = items.length;   
 });
 
 observer.observe(document.documentElement, { childList: true, subtree: true });
@@ -38,8 +55,7 @@ window.addEventListener("gamepadconnected", (e) => {
   });
 });
 
-
-  document.body.style.zoom = "80%";
+document.body.style.zoom = "80%";
 
 function selectThumbnail(index) {
   if (thumbnails[selectedIndex]) {
@@ -49,9 +65,13 @@ function selectThumbnail(index) {
   }
   selectedIndex = index;
   thumbnails[selectedIndex].style.transform = "scale(1.3)";
-  thumbnails[selectedIndex].style.zIndex = "999"; // passe par-dessus les voisins
+  thumbnails[selectedIndex].style.zIndex = "999";
   thumbnails[selectedIndex].style.transition = "transform 0.15s ease";
-  thumbnails[selectedIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+  thumbnails[selectedIndex].scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+    inline: "nearest"
+  });
 
   if (selectedIndex >= thumbnails.length - 4) {
     scanThumbnails();
@@ -62,13 +82,12 @@ function selectThumbnail(index) {
 let bindings = {
   PLAY_PAUSE: 0,
   BACK: 1,
-  FULLSCREEN: 2
+  FULLSCREEN: 2,
+  SEARCH: 3
 };
 
 chrome.storage.sync.get("bindings", (data) => {
-  if (data.bindings) {
-    bindings = data.bindings;
-  }
+  if (data.bindings) bindings = data.bindings;
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -77,8 +96,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
     console.log("Bindings updated:", bindings);
   }
 });
+
 function isPressed(gp, index) {
-  if (!gp.buttons[index]) return false;
+  if (!gp || !gp.buttons || !gp.buttons[index]) return false;
 
   const current = gp.buttons[index].pressed;
   const previous = gp.buttons[index]._prev || false;
@@ -87,8 +107,6 @@ function isPressed(gp, index) {
 
   return current && !previous;
 }
-console.log("CONTENT SCRIPT LOAD", bindings);
-
 let enabled = true;
 
 chrome.storage.sync.get("enabled", (data) => {
@@ -100,67 +118,108 @@ chrome.storage.onChanged.addListener((changes, area) => {
     enabled = changes.enabled.newValue;
   }
 });
+function playSelectedVideo() {
+  const el = thumbnails[selectedIndex];
+  if (!el) return;
 
+  const link = el.querySelector("a#video-title") || el.querySelector("a");
+
+  if (!link) return;
+
+  link.dispatchEvent(
+    new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    })
+  );
+}
+let hasBeenRefreshed = false 
 function gameLoop() {
   const gp = navigator.getGamepads()[0];
 
-  if (gp && thumbnails.length > 0 && enabled) {
+  const backPressed = isPressed(gp, bindings.BACK);
 
+  
+  if (gp && enabled) {
     const onHome = location.pathname !== "/watch";
-
+      if (isPressed(gp, bindings.SEARCH)) {
+        if (kbVisible) {
+          submitSearch();
+        } else if (search_bar) {
+          search_bar.focus();
+          createKeyboard();
+        }
+      }
     if (onHome) {
+      if (thumbnails.length > 0) {
+      const axis = isSearchPage() ? gp.axes[1] : gp.axes[0];
+          if (axis > 0.5 && lastAxis <= 0.5) {
+            selectThumbnail(Math.min(selectedIndex + 1, thumbnails.length - 1));
+          } 
+          else if (axis < -0.5 && lastAxis >= -0.5) {
+            selectThumbnail(Math.max(selectedIndex - 1, 0));
+          }
 
-      const axisX = gp.axes[0];
+          lastAxis = axis;
 
-      if (axisX > 0.5 && lastAxis <= 0.5) {
-        selectThumbnail(Math.min(selectedIndex + 1, thumbnails.length - 1));
-      } 
-      else if (axisX < -0.5 && lastAxis >= -0.5) {
-        selectThumbnail(Math.max(selectedIndex - 1, 0));
+        if (isPressed(gp, bindings.PLAY_PAUSE) && !kbVisible) {
+          isPlayingAVideo = true;   
+          playSelectedVideo()       
+        }
       }
-
-      lastAxis = axisX;
-
-      if (isPressed(gp, bindings.PLAY_PAUSE)) {
-        thumbnails[selectedIndex]?.querySelector("a")?.click();
-        isPlayingAVideo = true;
-      }
-    } 
-    else {
-
+    } else {
       const video = document.querySelector("video");
 
-      if (!video) {
-        requestAnimationFrame(gameLoop);
-        return;
-      }
+      if (video) {
+        if (isPressed(gp, bindings.PLAY_PAUSE)) {
+          video.paused ? video.play() : video.pause();
+        }
 
-      if (isPressed(gp, bindings.PLAY_PAUSE)) {
-        video.paused ? video.play() : video.pause();
-      }
+        if (isPressed(gp, bindings.BACK)) {
+          history.back();
+          isPlayingAVideo = false;
+        }
 
-      if (isPressed(gp, bindings.BACK)) {
+        if (isPressed(gp, bindings.FULLSCREEN)) {
+          if (!document.fullscreenElement) {
+            video.requestFullscreen();
+          } else {
+            document.exitFullscreen();
+          }
+        }
+
+      }
+    }
+    if (backPressed) {
+      if (!kbVisible && isSearchPage()) {
+        history.back();
+      } else if (!kbVisible && !isSearchPage()) {
         history.back();
         isPlayingAVideo = false;
       }
-
-      if (isPressed(gp, bindings.FULLSCREEN)) {
-        if (!document.fullscreenElement) {
-          video.requestFullscreen();
-        } else {
-          document.exitFullscreen();
-        }
-      }
     }
-    if(!enabled){
-      return
-    }
+  if (isSearchPage() && !hasBeenRefreshed) {
+    closeKeyboard();
+    scanThumbnails();
+    selectThumbnail(0);
+    hasBeenRefreshed = true;
+    
+  }
   }
 
   requestAnimationFrame(gameLoop);
 }
+
+
+
+function submitSearch() {
+  search_btn?.focus();
+  search_btn?.click();
+}
+
+function isSearchPage() {
+  return location.pathname === "/results";
+}
+
 requestAnimationFrame(gameLoop);
-
-
-
-

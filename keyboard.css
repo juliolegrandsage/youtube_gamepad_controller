@@ -1,0 +1,52 @@
+#gp-kb {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  display: none;
+}
+
+.keyboard_container {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.kb_row {
+  display: flex;
+  gap: 8px;
+}
+
+.key {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  background: #1e1e1e;
+  border: 1px solid #2e2e2e;
+  color: #ccc;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: monospace;
+  transition: background 0.08s, transform 0.08s;
+}
+
+.key:hover {
+  background: #2a2a2a;
+}
+
+.key:active {
+  transform: scale(0.92);
+}
+
+.key.gp-sel {
+  background: #cc0000;
+  border-color: #ff3333;
+  color: #fff;
+  transform: scale(1.12);
+}
