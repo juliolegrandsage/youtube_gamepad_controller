@@ -2,6 +2,7 @@ let kbRowIdx = 0;
 let kbColIdx = 0;
 let kbVisible = false;
 let kbLast = {};
+let kbLoopRunning = false;
 
 function kbRows() {
   return Array.from(document.querySelectorAll("#gp-kb .kb_row"));
@@ -27,7 +28,12 @@ function kbPressCurrent() {
 }
 
 function kbLoop() {
-  if (!kbVisible) return;
+  if (!kbVisible) {
+    kbLoopRunning = false;
+    return;
+  }
+
+  kbLoopRunning = true;
   const gp = navigator.getGamepads()[0];
   if (gp) {
     const s = {
@@ -39,6 +45,7 @@ function kbLoop() {
       b: gp.buttons[1]?.pressed,
     };
     const rows = kbRows();
+    if (rows.length === 0) return;
     if (s.d && !kbLast.d) { kbRowIdx = Math.min(kbRowIdx + 1, rows.length - 1); kbColIdx = Math.min(kbColIdx, rows[kbRowIdx].querySelectorAll(".key").length - 1); kbRender(); }
     if (s.u && !kbLast.u) { kbRowIdx = Math.max(kbRowIdx - 1, 0); kbColIdx = Math.min(kbColIdx, rows[kbRowIdx].querySelectorAll(".key").length - 1); kbRender(); }
     if (s.r && !kbLast.r) { kbColIdx = Math.min(kbColIdx + 1, rows[kbRowIdx].querySelectorAll(".key").length - 1); kbRender(); }
@@ -47,7 +54,9 @@ function kbLoop() {
     if (s.b && !kbLast.b) closeKeyboard();
     kbLast = s;
   }
-  requestAnimationFrame(kbLoop);
+  
+  if (kbVisible) requestAnimationFrame(kbLoop);
+  
 }
 
 let kbHtml = "";
@@ -75,25 +84,42 @@ function createKeyboard() {
   wrapper.style.left = rect.left + "px";
   wrapper.style.transform = "none";
 
-  // Gestion des clics
-  wrapper.querySelectorAll(".key").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const val = btn.dataset.value;
-      if (val === "BACKSPACE") {
-        search_bar.value = search_bar.value.slice(0, -1);
-      } else {
-        search_bar.value += val;
-      }
-      search_bar.dispatchEvent(new InputEvent("input", { bubbles: true }));
-      search_bar.focus();
-    });
-  });
+  wrapper.addEventListener("click", (event) => {
+  const btn = event.target.closest(".key");
+  if (!btn) return;
+
+  const val = btn.dataset.value;
+
+  if (val === "ENTER") {
+    console.log("SUBMIT SEARCH");
+
+    const form = search_bar.closest("form") || search_bar.form;
+
+    if (form?.requestSubmit) {
+      form.requestSubmit();
+    }
+
+    closeKeyboard();
+    return;
+  }
+
+  if (val === "BACKSPACE") {
+    search_bar.value = search_bar.value.slice(0, -1);
+  } else if (val === "SPACE") {
+    search_bar.value += " ";
+  } else {
+    search_bar.value += val;
+  }
+
+  search_bar.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  search_bar.focus();
+});
   kbRowIdx = 0;
   kbColIdx = 0;
   kbVisible = true;
   kbLast = {};
   kbRender();
-  kbLoop();
+  if (!kbLoopRunning) kbLoop();
 }
 
 function closeKeyboard() {

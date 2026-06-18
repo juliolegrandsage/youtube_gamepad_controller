@@ -142,15 +142,20 @@ function gameLoop() {
 
   
   if (gp && enabled) {
-    const onHome = location.pathname !== "/watch";
-      if (isPressed(gp, bindings.SEARCH)) {
-        if (kbVisible) {
-          submitSearch();
-        } else if (search_bar) {
-          search_bar.focus();
-          createKeyboard();
-        }
+    const onHome = location.pathname !== "/watch" && location.pathname !== "/results";
+
+    if (kbVisible) {
+      requestAnimationFrame(gameLoop);
+      return;
+    }
+
+    if (isPressed(gp, bindings.SEARCH)) {
+      if (search_bar) {
+        search_bar.focus();
+        createKeyboard();
       }
+    }
+
     if (onHome) {
       if (thumbnails.length > 0) {
       const axis = isSearchPage() ? gp.axes[1] : gp.axes[0];
@@ -160,18 +165,19 @@ function gameLoop() {
           else if (axis < -0.5 && lastAxis >= -0.5) {
             selectThumbnail(Math.max(selectedIndex - 1, 0));
           }
-
+          console.log("axis:", axis, "lastAxis:", lastAxis);
           lastAxis = axis;
 
-        if (isPressed(gp, bindings.PLAY_PAUSE) && !kbVisible) {
-          isPlayingAVideo = true;   
-          playSelectedVideo()       
-        }
+      if (isPressed(gp, bindings.PLAY_PAUSE) && !kbVisible) {
+        console.log("PLAY VIDEO");
+        playSelectedVideo();
       }
-    } else {
-      const video = document.querySelector("video");
 
+      }
+      
+    } else {
       if (video) {
+        if(!kbVisible && !isPlayingAVideo) {
         if (isPressed(gp, bindings.PLAY_PAUSE)) {
           video.paused ? video.play() : video.pause();
         }
@@ -184,9 +190,13 @@ function gameLoop() {
         if (isPressed(gp, bindings.FULLSCREEN)) {
           if (!document.fullscreenElement) {
             video.requestFullscreen();
+            document.body.style.zoom = "100%";
           } else {
             document.exitFullscreen();
-          }
+            document.body.style.zoom = "80%";
+
+            
+          }}
         }
 
       }
@@ -212,12 +222,11 @@ function gameLoop() {
 }
 
 
-
 function submitSearch() {
+  console.log("submitSearch()");
   search_btn?.focus();
   search_btn?.click();
 }
-
 function isSearchPage() {
   return location.pathname === "/results";
 }
