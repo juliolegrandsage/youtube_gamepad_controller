@@ -40,14 +40,6 @@ Une extension Chrome qui permet de naviguer sur YouTube avec une manette de jeu.
 
 ---
 
-## Structure du projet
-
-```
-youtube-gamepad/
-├── manifest.json
-└── content.js
-```
-
 ---
 
 ## Compatibilité
