@@ -50,8 +50,6 @@ Une extension Chrome qui permet de naviguer sur YouTube avec une manette de jeu.
 ---
 
 ## Limitations connues
-
-- Fonctionne uniquement sur la page d'accueil de YouTube pour la navigation
 - La manette doit être connectée **avant** ou **après** le chargement de la page (l'événement `gamepadconnected` est détecté automatiquement)
 
 ---
