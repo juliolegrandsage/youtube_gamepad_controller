@@ -1,80 +1,46 @@
 let thumbnails = [];
+let selectedThumbnailIndex = 0
 let search_bar;
-let selectedIndex = 0;
-let lastAxis = 0;
-let isPlayingAVideo = false;
-let isFullScreen = false;
-let gamepad_name = "";
-let lastCount = 0;
+let domLocked = false;
 
-function scanThumbnails() {
-  if (isSearchPage()) {
-    thumbnails = Array.from(document.querySelectorAll("ytd-thumbnail"));
-  } else {
-    thumbnails = Array.from(document.querySelectorAll("ytd-rich-item-renderer"));
+function getThumbnails() {
+  if(!location.pathname.includes("/results")){
+    thumbnails = Array.from(
+      document.querySelectorAll(
+        'ytd-video-renderer, ytd-rich-item-renderer, ytd-compact-video-renderer'
+      )
+    );
   }
-  search_bar = document.querySelector(
-    "input#search, input[name='search_query'], .ytSearchboxComponentInput"
-  );
+  else if(location.pathname.includes("/results")){
+    thumbnails = Array.from(
+      document.querySelectorAll(
+        "ytd-video-renderer"
+      )
+    )
+  }
 
-  search_btn = document.querySelector(".ytSearchboxComponentSearchButton");
+  search_bar = document.querySelector(".ytSearchboxComponentInput");
 }
+let observerTimeout = null;
+
 const observer = new MutationObserver(() => {
+  if (domLocked) return;
 
-  if (isSearchPage()) {
-    items = document.querySelectorAll("ytd-video-renderer");
-    console.log("is search page")
-  } else {
-    items = document.querySelectorAll("ytd-rich-item-renderer");
-  }
+  clearTimeout(observerTimeout);
 
-  if (thumbnails.length > 0) {
-    console.log("thumbnails :", thumbnails.length);
-    selectThumbnail(0);
-  }
-  if (items.length === lastCount) return;
-
-  lastCount = items.length;   
+  observerTimeout = setTimeout(() => {
+    getThumbnails();
+  }, 150);
 });
 
-observer.observe(document.documentElement, { childList: true, subtree: true });
-
-window.addEventListener("gamepadconnected", (e) => {
-  const gp = navigator.getGamepads()[e.gamepad.index];
-  document.body.style.zoom = "80%";
-  console.log("manette co:", gp.id);
-
-  chrome.storage.local.set({
-    gamepad: {
-      name: gp.id,
-      index: e.gamepad.index
-    }
-  });
+observer.observe(document.documentElement, {
+  childList: true,
+  subtree: true
 });
 
-document.body.style.zoom = "80%";
-
-function selectThumbnail(index) {
-  if (thumbnails[selectedIndex]) {
-    thumbnails[selectedIndex].style.outline = "";
-    thumbnails[selectedIndex].style.transform = "";
-    thumbnails[selectedIndex].style.zIndex = "";
-  }
-  selectedIndex = index;
-  thumbnails[selectedIndex].style.transform = "scale(1.3)";
-  thumbnails[selectedIndex].style.zIndex = "999";
-  thumbnails[selectedIndex].style.transition = "transform 0.15s ease";
-  thumbnails[selectedIndex].scrollIntoView({
-    behavior: "smooth",
-    block: "center",
-    inline: "nearest"
-  });
-
-  if (selectedIndex >= thumbnails.length - 4) {
-    scanThumbnails();
-    console.log("rescan : " + thumbnails.length);
-  }
-}
+// Gestion de la connexion de la manette.
+let gamepadIndex = null;
+let gamepad = null;
 
 let bindings = {
   PLAY_PAUSE: 0,
@@ -86,144 +52,262 @@ let bindings = {
 chrome.storage.sync.get("bindings", (data) => {
   if (data.bindings) bindings = data.bindings;
 });
-
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync" && changes.bindings) {
-    bindings = changes.bindings.newValue;
-    console.log("Bindings updated:", bindings);
+function loadGamepadInfo(){
+  const gamepads = navigator.getGamepads();
+  if(gamepads[0]){
+    gamepad = gamepads[0];
   }
-});
+  else{
+    gamepad = null;
+  }
 
-function isPressed(gp, index) {
-  if (!gp || !gp.buttons || !gp.buttons[index]) return false;
-
-  const current = gp.buttons[index].pressed;
-  const previous = gp.buttons[index]._prev || false;
-
-  gp.buttons[index]._prev = current;
-
-  return current && !previous;
 }
-let enabled = true;
 
-chrome.storage.sync.get("enabled", (data) => {
-  enabled = data.enabled ?? true;
+
+window.addEventListener("gamepadconnected", (event) => {
+  gamepadIndex = event.gamepad.index;
+  console.log("Gamepad connected:", event.gamepad.id);
 });
 
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync" && changes.enabled) {
-    enabled = changes.enabled.newValue;
+// Fonction pour séléctionner la vidéo 
+
+let lastAxisX = 0;
+let lastAxisY = 0;
+function SelectVideo(){
+  if(kbVisible) return;
+  if(!gamepad) return;
+
+  const path = location.pathname;
+
+  // HOME / SEARCH
+  if (!path.includes("/watch") && !path.includes("/results")) {
+
+    if (thumbnails.length === 0) return;
+
+    const axisX = gamepad.axes[0];
+
+    if (axisX > 0.6 && lastAxisX <= 0.6) {
+      selectedThumbnailIndex = Math.min(selectedThumbnailIndex + 1, thumbnails.length - 1);
+    }
+
+    if (axisX < -0.6 && lastAxisX >= -0.6) {
+      selectedThumbnailIndex = Math.max(selectedThumbnailIndex - 1, 0);
+    }
+
+    lastAxisX = axisX;
   }
-});
-function playSelectedVideo() {
-  const el = thumbnails[selectedIndex];
-  if (!el) return;
 
-  const link = el.querySelector("a#video-title") || el.querySelector("a");
+  // RESULTS PAGE
+  if (path.includes("/results")) {
 
-  if (!link) return;
+    if (gamepad && thumbnails.length > 0) {
 
-  link.dispatchEvent(
-    new MouseEvent("click", {
-      bubbles: true,
-      cancelable: true,
-      view: window
-    })
+      const axisY = gamepad.axes[1];
+
+      if (axisY > 0.6 && lastAxisY <= 0.6) {
+        selectedThumbnailIndex = Math.min(selectedThumbnailIndex + 1, thumbnails.length - 1);
+      }
+
+      if (axisY < -0.6 && lastAxisY >= -0.6) {
+        selectedThumbnailIndex = Math.max(selectedThumbnailIndex - 1, 0);
+      }
+
+      lastAxisY = axisY;
+    }
+  }
+}
+
+function getSelected() {
+  return thumbnails[selectedThumbnailIndex] || null;
+}
+
+function getSelectedLink(){
+    const el = getSelected();
+  if (!el) return null;
+
+  return (
+    el.querySelector("a#video-title-link") ||
+    el.querySelector("a#video-title") ||
+    el.querySelector("a")
   );
 }
-let hasBeenRefreshed = false 
-function gameLoop() {
-  const gp = navigator.getGamepads()[0];
 
-  const backPressed = isPressed(gp, bindings.BACK);
+function applySelectedStyle(el) {
+  if (!el) return;
 
-  
-  if (gp && enabled) {
-    const onHome = location.pathname !== "/watch" && location.pathname !== "/results";
+  el.style.transform = "scale(1.15)";
+  el.style.transition = "transform 0.2s ease";
+  el.style.zIndex = "999";
+  el.style.boxShadow = "0 0 12px rgba(255, 0, 0, 0.6)";
+  el.style.borderRadius = "12px";
+}
 
-    if (kbVisible) {
-      requestAnimationFrame(gameLoop);
-      return;
+function clearSelectedStyle(el) {
+  if (!el) return;
+
+  el.style.transform = "";
+  el.style.boxShadow = "";
+  el.style.zIndex = "";
+}
+
+function updateSelectionUI() {
+  if (domLocked) return;
+  if (thumbnails.length === 0) return;
+
+  thumbnails.forEach(t => clearSelectedStyle(t));
+
+  const el = getSelected();
+  if (!el) return;
+
+  applySelectedStyle(el);
+
+  el.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+}
+
+// Anti spam des boutons
+
+function isPressed(gp, index){
+  if (!gp || !gp.buttons[index]) return false;
+
+  const btn = gp.buttons[index];
+
+  const prev = btn._prev || false;
+  btn._prev = btn.pressed;
+
+  return btn.pressed && !prev;
+}
+
+// Modifier le CSS de la thumbnail séléctionnée
+
+
+// Loop principale
+
+let isVideoPaused = true
+let isNavigating = false;
+let lastPath = location.pathname;
+
+function beginNavigationLock(ms = 1200) {
+  isNavigating = true;
+  domLocked = true;
+
+  setTimeout(() => {
+    domLocked = false;
+
+    if (location.pathname === lastPath) {
+      isNavigating = false;
+    }
+  }, ms);
+}
+
+function checkNavigation() {
+  if (domLocked) return;
+
+  if (location.pathname !== lastPath) {
+
+    lastPath = location.pathname;
+
+    isNavigating = false;
+
+    if (typeof closeKeyboard === "function") {
+      closeKeyboard();
     }
 
-    if (isPressed(gp, bindings.SEARCH)) {
-      if (search_bar) {
-        search_bar.focus();
-        createKeyboard();
+    selectedThumbnailIndex = 0;
+    lastAxisX = 0;
+    lastAxisY = 0;
+
+    getThumbnails();
+  }
+}
+function mainLoop() {
+  // Toujours refresh gamepad proprement
+  if (gamepadIndex !== null) {
+    gamepad = navigator.getGamepads()[gamepadIndex];
+  }
+
+  // check navigation YouTube
+  checkNavigation();
+
+  if (!gamepad || domLocked || isNavigating) {
+    requestAnimationFrame(mainLoop);
+    return;
+  }
+
+  const isWatch = location.pathname.includes("/watch");
+  const isResults = location.pathname.includes("/results");
+
+  // =========================
+  // THUMBNAILS NAVIGATION
+  // =========================
+  if (!isWatch) {
+
+    SelectVideo();
+    updateSelectionUI();
+
+    // éviter double click / spam navigation
+    if (isPressed(gamepad, bindings.PLAY_PAUSE) && !kbVisible && !isNavigating) {
+
+      const link = getSelectedLink();
+
+      if (link) {
+        beginNavigationLock(900);
+        link.click();
       }
     }
+  }
 
-    if (onHome) {
-      if (thumbnails.length > 0) {
-      const axis = isSearchPage() ? gp.axes[1] : gp.axes[0];
-          if (axis > 0.5 && lastAxis <= 0.5) {
-            selectThumbnail(Math.min(selectedIndex + 1, thumbnails.length - 1));
-          } 
-          else if (axis < -0.5 && lastAxis >= -0.5) {
-            selectThumbnail(Math.max(selectedIndex - 1, 0));
-          }
-          console.log("axis:", axis, "lastAxis:", lastAxis);
-          lastAxis = axis;
+  // =========================
+  // WATCH PAGE (VIDEO)
+  // =========================
+if (isWatch) {
 
-      if (isPressed(gp, bindings.PLAY_PAUSE) && !kbVisible) {
-        console.log("PLAY VIDEO");
-        playSelectedVideo();
-      }
+  const video = document.querySelector("video");
 
-      }
-      
+  if (!video) return;
+
+  // PLAY / PAUSE
+  if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
+    if (video.paused) {
+      video.play();
     } else {
-      if (video) {
-        if(!kbVisible && !isPlayingAVideo) {
-        if (isPressed(gp, bindings.PLAY_PAUSE)) {
-          video.paused ? video.play() : video.pause();
-        }
-
-        if (isPressed(gp, bindings.BACK)) {
-          history.back();
-          isPlayingAVideo = false;
-        }
-
-        if (isPressed(gp, bindings.FULLSCREEN)) {
-          if (!document.fullscreenElement) {
-            video.requestFullscreen();
-            document.body.style.zoom = "100%";
-          } else {
-            document.exitFullscreen();
-            document.body.style.zoom = "80%";
-
-            
-          }}
-        }
-
-      }
+      video.pause();
     }
-    if (backPressed) {
-      if (!kbVisible && isSearchPage()) {
-        history.back();
-      } else if (!kbVisible && !isSearchPage()) {
-        history.back();
-        isPlayingAVideo = false;
-      }
-    }
-  if (isSearchPage() && !hasBeenRefreshed) {
-    closeKeyboard();
-    scanThumbnails();
-    selectThumbnail(0);
-    hasBeenRefreshed = true;
-    
-  }
   }
 
-  requestAnimationFrame(gameLoop);
-}
+  // FULLSCREEN
+  if (isPressed(gamepad, bindings.FULLSCREEN)) {
 
+    if (!document.fullscreenElement) {
+      video.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  }
+}
+  // =========================
+  // BACK BUTTON (global safe)
+  // =========================
+  if (isPressed(gamepad, bindings.BACK) && !isNavigating) {
 
-function submitSearch() {
-  console.log("submitSearch()");
-  search_btn?.focus();
-  search_btn?.click();
+    beginNavigationLock(900);
+    history.back();
+  }
+
+  // =========================
+  // SEARCH KEYBOARD
+  // =========================
+  if (
+    isPressed(gamepad, bindings.SEARCH) &&
+    !kbVisible &&
+    search_bar &&
+    !isNavigating
+  ) {
+    createKeyboard();
+  }
+
+  requestAnimationFrame(mainLoop);
 }
-function isSearchPage() {
-  return location.pathname === "/results";
-}
+mainLoop()

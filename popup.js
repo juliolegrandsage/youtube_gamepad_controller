@@ -25,30 +25,33 @@ function refreshUI() {
     buttons.BACK.textContent = `Button ${bindings.BACK}`;
     buttons.SEARCH.textContent = `Button ${bindings.SEARCH}`;
 }
-
 function waitForButton(action) {
-    buttons[action].textContent = "Press a button...";
+  buttons[action].textContent = "Press a button...";
 
-    const interval = setInterval(() => {
-        const gp = navigator.getGamepads()[0];
-        if (!gp) return;
+  const interval = setInterval(() => {
+    const gp = navigator.getGamepads()[0];
+    if (!gp) return;
 
-        for (let i = 0; i < gp.buttons.length; i++) {
-            if (gp.buttons[i].pressed) {
+    for (let i = 0; i < gp.buttons.length; i++) {
+      const btn = gp.buttons[i];
 
-                bindings[action] = i;
+      if (btn.pressed && !btn._prev) {
+        btn._prev = true;
 
-                chrome.storage.sync.set({ bindings });
+        bindings[action] = i;
+        chrome.storage.sync.set({ bindings });
 
-                refreshUI();
+        refreshUI();
+        clearInterval(interval);
+        return;
+      }
 
-                clearInterval(interval);
-                return;
-            }
-        }
-    }, 50);
+      if (!btn.pressed) {
+        btn._prev = false;
+      }
+    }
+  }, 50);
 }
-
 buttons.PLAY_PAUSE.addEventListener("click", () => {
     waitForButton("PLAY_PAUSE");
 });
@@ -73,6 +76,7 @@ let isActivated = true;
 
 chrome.storage.sync.get(["enabled"], (data) => {
   isActivated = data.enabled ?? true;
+  
   updateToggleUI();
 });
 function updateToggleUI() {
