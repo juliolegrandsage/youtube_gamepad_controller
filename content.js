@@ -20,7 +20,6 @@ function scanThumbnails() {
   search_btn = document.querySelector(".ytSearchboxComponentSearchButton");
 }
 const observer = new MutationObserver(() => {
-  let items;
 
   if (isSearchPage()) {
     items = document.querySelectorAll("ytd-video-renderer");
@@ -29,10 +28,8 @@ const observer = new MutationObserver(() => {
     items = document.querySelectorAll("ytd-rich-item-renderer");
   }
 
-  if (items.length > 0) {
-    thumbnails = Array.from(items);
-    console.log("items :", thumbnails.length);
-    observer.disconnect();
+  if (thumbnails.length > 0) {
+    console.log("thumbnails :", thumbnails.length);
     selectThumbnail(0);
   }
   if (items.length === lastCount) return;
@@ -230,5 +227,3 @@ function submitSearch() {
 function isSearchPage() {
   return location.pathname === "/results";
 }
-
-requestAnimationFrame(gameLoop);
