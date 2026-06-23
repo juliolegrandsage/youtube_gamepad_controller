@@ -131,6 +131,7 @@ function SelectVideo(){
     lastAxisX = axisX;
   }
 
+
   // RESULTS PAGE
   if (path.includes("/results")) {
 
@@ -149,18 +150,29 @@ function SelectVideo(){
       lastAxisY = axisY;
     }
   }
-  if(path.includes("/watch")){
-    if (gamepad && thumbnails.length > 0){
+  if (path.includes("/watch")) {
+    if (gamepad && thumbnails.length > 0) {
       const axisY = gamepad.axes[1];
+      const axisX = gamepad.axes[0];
 
-      if (axisY > 0.6 && lastAxisY <= 0.6){
-        selectedThumbnailIndex = Math.min(selectedThumbnailIndex + 1, thumbnails.length - 1)
+      if (axisY > 0.6 && lastAxisY <= 0.6) {
+        selectedThumbnailIndex = Math.min(selectedThumbnailIndex + 1, thumbnails.length - 1);
       }
 
-      if (axisY < -0.6 && lastAxisY >= -0.6){
+      if (axisY < -0.6 && lastAxisY >= -0.6) {
         selectedThumbnailIndex = Math.max(selectedThumbnailIndex - 1, 0);
+      }
 
-      } 
+      if (axisX > 0.6 && lastAxisX <= 0.6) {
+        selectedThumbnailIndex = Math.min(selectedThumbnailIndex + 1, thumbnails.length - 1);
+      }
+
+      if (axisX < -0.6 && lastAxisX >= -0.6) {
+        selectedThumbnailIndex = Math.max(selectedThumbnailIndex - 1, 0);
+      }
+
+      lastAxisX = axisX;
+      lastAxisY = axisY;
     }
   }
 }
@@ -242,23 +254,8 @@ const watchState = {
 };
 let lastWatchAxisX = 0;
 let currentWatchState = watchState.VIDEO
-function updateWatchState(gp) {
-  if (!gp) return;
-  console.log("huh")
-  const x = gp.axes[0];
 
-  // droite → LIST
-  if (x > 0.6 && lastWatchAxisX <= 0.6) {
-    currentWatchState = watchState.LIST;
-  }
 
-  // gauche → VIDEO
-  if (x < -0.6 && lastWatchAxisX >= -0.6) {
-    currentWatchState = watchState.VIDEO;
-  }
-
-  lastWatchAxisX = x;
-}
 
 function beginNavigationLock(ms = 1200) {
   isNavigating = true;
@@ -333,42 +330,64 @@ function mainLoop() {
   // =========================
   // WATCH PAGE (VIDEO)
   // =========================
-if (isWatch) {
-  const video = document.querySelector("video");
-  if (!video) return;
+  if (isWatch) {
+    const video = document.querySelector("video");
+    if (!video) {
+      requestAnimationFrame(mainLoop);
+      return;
+    }
+          const axisX = gamepad.axes[0] ?? 0;
+      if (axisX > 0.6 && lastWatchAxisX <= 0.6) {
+        currentWatchState = watchState.LIST;
+        selectedThumbnailIndex = 0;
+        getThumbnails();
+      }
+      if (axisX < -0.6 && lastWatchAxisX >= -0.6) {
+        currentWatchState = watchState.VIDEO;
+        selectedThumbnailIndex = 0;
+      }
+      lastWatchAxisX = axisX;
+    if (currentWatchState === watchState.VIDEO) {
+      // clean UI state optionnel
+      thumbnails = [];
+      thumbnails.forEach(clearSelectedStyle);
 
-  updateWatchState(gamepad);
+      if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
+        video.paused ? video.play() : video.pause();
+      }
 
-  if (currentWatchState === watchState.VIDEO) {
+      if (isPressed(gamepad, bindings.FULLSCREEN)) {
+        document.fullscreenElement
+          ? document.exitFullscreen?.()
+          : video.requestFullscreen?.();
+      }
 
-    // clean UI state optionnel
-    thumbnails = [];
 
-    if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
-      video.paused ? video.play() : video.pause();
     }
 
-    if (isPressed(gamepad, bindings.FULLSCREEN)) {
-      document.fullscreenElement
-        ? document.exitFullscreen?.()
-        : video.requestFullscreen?.();
+    if (currentWatchState === watchState.LIST) {
+      if (thumbnails.length === 0) getThumbnails();
+      SelectVideo();
+      updateSelectionUI();
+      if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
+        const link = getSelectedLink();
+        if (link) link.click();
+      }
     }
-
+    if (currentWatchState === watchState.VIDEO){
+      if(isPressed(gamepad, bindings.PLAY_PAUSE)){
+        if (video.paused){
+          video.play()
+        }
+        else{
+          video.pause()
+        }
+      }
+    }
+  
+    requestAnimationFrame(mainLoop);
+    return;
   }
-
-  if (currentWatchState === watchState.LIST) {
-    SelectVideo();
-    updateSelectionUI();
-    if (thumbnails.length === 0) getThumbnails();
-    if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
-      const link = getSelectedLink();
-      if (link) link.click();
-    }
-    console.log("statusbar")
-    }
-
-  return;
-}
   // =========================
   // BACK BUTTON (global safe)
   // =========================
