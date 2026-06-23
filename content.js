@@ -4,19 +4,24 @@ let search_bar;
 let domLocked = false;
 
 function getThumbnails() {
-  if(!location.pathname.includes("/results")){
+  const path = location.pathname;
+
+  if (path.includes("/results")) {
+    thumbnails = Array.from(
+      document.querySelectorAll("ytd-video-renderer")
+    );
+
+  } else if (path.includes("/watch")) {
+    thumbnails = Array.from(
+      document.querySelectorAll("yt-lockup-view-model")
+    );
+
+  } else {
     thumbnails = Array.from(
       document.querySelectorAll(
-        'ytd-video-renderer, ytd-rich-item-renderer, ytd-compact-video-renderer'
+        "ytd-video-renderer, ytd-rich-item-renderer, ytd-compact-video-renderer"
       )
     );
-  }
-  else if(location.pathname.includes("/results")){
-    thumbnails = Array.from(
-      document.querySelectorAll(
-        "ytd-video-renderer"
-      )
-    )
   }
 
   search_bar = document.querySelector(".ytSearchboxComponentInput");
@@ -62,12 +67,41 @@ function loadGamepadInfo(){
   }
 
 }
+async function showConnectedAlert() {
+  const url = chrome.runtime.getURL("connected.html");
+  const res = await fetch(url);
+  const html = await res.text();
 
+  // inject CSS
+  const css = document.createElement("link");
+  css.rel = "stylesheet";
+  css.href = chrome.runtime.getURL("connectedAlert.css");
+  document.head.appendChild(css);
 
+  document.getElementById("connectedIndicator")?.remove();
+
+  const wrapper = document.createElement("div");
+  wrapper.id = "connectedIndicatorWrapper";
+
+  wrapper.innerHTML = html;
+  const p = wrapper.querySelector("#connectedIndicatorP");
+  if (p && gamepad) {
+   p.textContent = "🎮" + gamepad.id + " connected";
+  }
+  document.body.appendChild(wrapper);
+
+  // Faire disparaitre la notification
+  setTimeout(() => {
+    wrapper.style = "display: none;"
+  }, 2500);
+}
 window.addEventListener("gamepadconnected", (event) => {
   gamepadIndex = event.gamepad.index;
   console.log("Gamepad connected:", event.gamepad.id);
+  showConnectedAlert()
 });
+
+
 
 // Fonction pour séléctionner la vidéo 
 
@@ -113,6 +147,20 @@ function SelectVideo(){
       }
 
       lastAxisY = axisY;
+    }
+  }
+  if(path.includes("/watch")){
+    if (gamepad && thumbnails.length > 0){
+      const axisY = gamepad.axes[1];
+
+      if (axisY > 0.6 && lastAxisY <= 0.6){
+        selectedThumbnailIndex = Math.min(selectedThumbnailIndex + 1, thumbnails.length - 1)
+      }
+
+      if (axisY < -0.6 && lastAxisY >= -0.6){
+        selectedThumbnailIndex = Math.max(selectedThumbnailIndex - 1, 0);
+
+      } 
     }
   }
 }
@@ -188,6 +236,29 @@ function isPressed(gp, index){
 let isVideoPaused = true
 let isNavigating = false;
 let lastPath = location.pathname;
+const watchState = {
+  VIDEO: "VIDEO",
+  LIST: "LIST"
+};
+let lastWatchAxisX = 0;
+let currentWatchState = watchState.VIDEO
+function updateWatchState(gp) {
+  if (!gp) return;
+  console.log("huh")
+  const x = gp.axes[0];
+
+  // droite → LIST
+  if (x > 0.6 && lastWatchAxisX <= 0.6) {
+    currentWatchState = watchState.LIST;
+  }
+
+  // gauche → VIDEO
+  if (x < -0.6 && lastWatchAxisX >= -0.6) {
+    currentWatchState = watchState.VIDEO;
+  }
+
+  lastWatchAxisX = x;
+}
 
 function beginNavigationLock(ms = 1200) {
   isNavigating = true;
@@ -263,29 +334,40 @@ function mainLoop() {
   // WATCH PAGE (VIDEO)
   // =========================
 if (isWatch) {
-
   const video = document.querySelector("video");
-
   if (!video) return;
 
-  // PLAY / PAUSE
-  if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
-    if (video.paused) {
-      video.play();
-    } else {
-      video.pause();
+  updateWatchState(gamepad);
+
+  if (currentWatchState === watchState.VIDEO) {
+
+    // clean UI state optionnel
+    thumbnails = [];
+
+    if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
+      video.paused ? video.play() : video.pause();
     }
+
+    if (isPressed(gamepad, bindings.FULLSCREEN)) {
+      document.fullscreenElement
+        ? document.exitFullscreen?.()
+        : video.requestFullscreen?.();
+    }
+
   }
 
-  // FULLSCREEN
-  if (isPressed(gamepad, bindings.FULLSCREEN)) {
-
-    if (!document.fullscreenElement) {
-      video.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
+  if (currentWatchState === watchState.LIST) {
+    SelectVideo();
+    updateSelectionUI();
+    if (thumbnails.length === 0) getThumbnails();
+    if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
+      const link = getSelectedLink();
+      if (link) link.click();
     }
-  }
+    console.log("statusbar")
+    }
+
+  return;
 }
   // =========================
   // BACK BUTTON (global safe)

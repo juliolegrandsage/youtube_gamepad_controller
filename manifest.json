@@ -23,7 +23,11 @@
 },
 "web_accessible_resources": [
   {
-    "resources": ["keyboard.html"],
+    "resources": [
+      "keyboard.html",
+      "connectedAlert.css",
+      "connected.html"
+    ],
     "matches": ["https://*.youtube.com/*"]
   }
 ]
