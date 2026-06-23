@@ -128,7 +128,10 @@ function SelectVideo(){
       selectedThumbnailIndex = Math.max(selectedThumbnailIndex - 1, 0);
     }
 
+
+    
     lastAxisX = axisX;
+
   }
 
 
@@ -290,13 +293,33 @@ function checkNavigation() {
     getThumbnails();
   }
 }
+
+function selectWatchVideos() {
+  if (!gamepad || thumbnails.length === 0) return;
+
+  const axisY = gamepad.axes[1];
+
+  if (axisY > 0.6 && lastAxisY <= 0.6) {
+    selectedThumbnailIndex = Math.min(
+      selectedThumbnailIndex + 1,
+      thumbnails.length - 1
+    );
+  }
+
+  if (axisY < -0.6 && lastAxisY >= -0.6) {
+    selectedThumbnailIndex = Math.max(
+      selectedThumbnailIndex - 1,
+      0
+    );
+  }
+
+  lastAxisY = axisY;
+}
 function mainLoop() {
-  // Toujours refresh gamepad proprement
   if (gamepadIndex !== null) {
     gamepad = navigator.getGamepads()[gamepadIndex];
   }
 
-  // check navigation YouTube
   checkNavigation();
 
   if (!gamepad || domLocked || isNavigating) {
@@ -305,19 +328,112 @@ function mainLoop() {
   }
 
   const isWatch = location.pathname.includes("/watch");
-  const isResults = location.pathname.includes("/results");
 
   // =========================
-  // THUMBNAILS NAVIGATION
+  // HOME + RESULTS
   // =========================
   if (!isWatch) {
-
     SelectVideo();
     updateSelectionUI();
 
-    // éviter double click / spam navigation
-    if (isPressed(gamepad, bindings.PLAY_PAUSE) && !kbVisible && !isNavigating) {
+    if (
+      isPressed(gamepad, bindings.PLAY_PAUSE) &&
+      !kbVisible &&
+      !isNavigating
+    ) {
+      const link = getSelectedLink();
 
+      if (link) {
+        beginNavigationLock(900);
+        link.click();
+      }
+    }
+
+    if (
+      isPressed(gamepad, bindings.SEARCH) &&
+      !kbVisible &&
+      search_bar &&
+      !isNavigating
+    ) {
+      createKeyboard();
+    }
+
+    if (
+      isPressed(gamepad, bindings.BACK) &&
+      !isNavigating
+    ) {
+      beginNavigationLock(900);
+      history.back();
+    }
+
+    requestAnimationFrame(mainLoop);
+    return;
+  }
+
+  // =========================
+  // WATCH PAGE
+  // =========================
+  const video = document.querySelector("video");
+
+  if (!video) {
+    requestAnimationFrame(mainLoop);
+    return;
+  }
+
+  const axisX = gamepad.axes[0] ?? 0;
+
+  // VIDEO -> LIST
+  if (
+    currentWatchState === watchState.VIDEO &&
+    axisX > 0.6 &&
+    lastWatchAxisX <= 0.6
+  ) {
+    currentWatchState = watchState.LIST;
+
+    getThumbnails();
+    updateSelectionUI();
+  }
+
+  // LIST -> VIDEO
+  if (
+    currentWatchState === watchState.LIST &&
+    axisX < -0.6 &&
+    lastWatchAxisX >= -0.6
+  ) {
+    currentWatchState = watchState.VIDEO;
+
+    thumbnails.forEach(clearSelectedStyle);
+  }
+
+  lastWatchAxisX = axisX;
+
+  // =========================
+  // VIDEO MODE
+  // =========================
+  if (currentWatchState === watchState.VIDEO) {
+
+    if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
+      video.paused
+        ? video.play()
+        : video.pause();
+    }
+
+    if (isPressed(gamepad, bindings.FULLSCREEN)) {
+      document.fullscreenElement
+        ? document.exitFullscreen?.()
+        : video.requestFullscreen?.();
+    }
+  }
+
+  // =========================
+  // LIST MODE
+  // =========================
+  if (currentWatchState === watchState.LIST) {
+
+    SelectVideo(); // uniquement Y pour /watch
+    updateSelectionUI();
+
+    if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
       const link = getSelectedLink();
 
       if (link) {
@@ -328,93 +444,14 @@ function mainLoop() {
   }
 
   // =========================
-  // WATCH PAGE (VIDEO)
-  // =========================
-  if (isWatch) {
-    const video = document.querySelector("video");
-    if (!video) {
-      requestAnimationFrame(mainLoop);
-      return;
-    }
-          const axisX = gamepad.axes[0] ?? 0;
-      if (axisX > 0.6 && lastWatchAxisX <= 0.6) {
-        currentWatchState = watchState.LIST;
-        selectedThumbnailIndex = 0;
-        getThumbnails();
-        updateSelectionUI();
-      }
-      if (axisX < -0.6 && lastWatchAxisX >= -0.6) {
-        currentWatchState = watchState.VIDEO;
-        selectedThumbnailIndex = 0;
-      }
-      lastWatchAxisX = axisX;
-    if (currentWatchState === watchState.VIDEO) {
-      // clean UI state optionnel
-      thumbnails.forEach(clearSelectedStyle);
-      thumbnails = [];
-
-      if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
-        video.paused ? video.play() : video.pause();
-      }
-
-      if (isPressed(gamepad, bindings.FULLSCREEN)) {
-        document.fullscreenElement
-          ? document.exitFullscreen?.()
-          : video.requestFullscreen?.();
-      }
-
-
-    }
-
-    if (currentWatchState === watchState.LIST) {
-      if (thumbnails.length === 0) getThumbnails();
-      SelectVideo();
-      updateSelectionUI();
-      if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
-        const link = getSelectedLink();
-        if (link) link.click();
-      }
-    }
-    if (currentWatchState === watchState.VIDEO){
-      if(isPressed(gamepad, bindings.PLAY_PAUSE)){
-        if (video.paused){
-          video.play()
-        }
-        else{
-          video.pause()
-        }
-      }
-    }
-      // =========================
-  // BACK BUTTON (global safe)
-  // =========================
-  if (isPressed(gamepad, bindings.BACK) && !isNavigating) {
-
-    beginNavigationLock(900);
-    history.back();
-  }
-    requestAnimationFrame(mainLoop);
-    return;
-  }
-  // =========================
-  // BACK BUTTON (global safe)
-  // =========================
-  if (isPressed(gamepad, bindings.BACK) && !isNavigating) {
-
-    beginNavigationLock(900);
-    history.back();
-  }
-
-  // =========================
-  // SEARCH KEYBOARD
+  // BACK
   // =========================
   if (
-    isPressed(gamepad, bindings.SEARCH) &&
-    !kbVisible &&
-    search_bar &&
+    isPressed(gamepad, bindings.BACK) &&
     !isNavigating
   ) {
-    createKeyboard();
+    beginNavigationLock(900);
+    history.back();
   }
 
   requestAnimationFrame(mainLoop);
