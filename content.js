@@ -341,6 +341,7 @@ function mainLoop() {
         currentWatchState = watchState.LIST;
         selectedThumbnailIndex = 0;
         getThumbnails();
+        updateSelectionUI();
       }
       if (axisX < -0.6 && lastWatchAxisX >= -0.6) {
         currentWatchState = watchState.VIDEO;
@@ -349,8 +350,8 @@ function mainLoop() {
       lastWatchAxisX = axisX;
     if (currentWatchState === watchState.VIDEO) {
       // clean UI state optionnel
-      thumbnails = [];
       thumbnails.forEach(clearSelectedStyle);
+      thumbnails = [];
 
       if (isPressed(gamepad, bindings.PLAY_PAUSE)) {
         video.paused ? video.play() : video.pause();
@@ -384,7 +385,14 @@ function mainLoop() {
         }
       }
     }
-  
+      // =========================
+  // BACK BUTTON (global safe)
+  // =========================
+  if (isPressed(gamepad, bindings.BACK) && !isNavigating) {
+
+    beginNavigationLock(900);
+    history.back();
+  }
     requestAnimationFrame(mainLoop);
     return;
   }
