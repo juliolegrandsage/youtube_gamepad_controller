@@ -3,6 +3,7 @@ let kbColIdx = 0;
 let kbVisible = false;
 let kbLast = {};
 let kbLoopRunning = false;
+const searchBar = document.querySelector(".ytSearchboxComponentInput");
 
 function kbRows() {
   return Array.from(document.querySelectorAll("#gp-kb .kb_row"));
@@ -66,6 +67,15 @@ function kbLoop() {
   }
 
   if (kbVisible) requestAnimationFrame(kbLoop);
+  if (kbVisible && gp && gp.buttons[11]?.pressed) {
+    const form = searchBar.closest("form") || searchBar.form;
+
+    closeKeyboard();
+      if (form?.requestSubmit) {
+        form.requestSubmit();
+      }
+    
+  }
 }
 
 
@@ -79,7 +89,6 @@ let kbHtml = "";
 })();
 
 function createKeyboard() {
-  const searchBar = document.querySelector(".ytSearchboxComponentInput");
   if (!searchBar || !kbHtml) return;
 
   kbVisible = true;
